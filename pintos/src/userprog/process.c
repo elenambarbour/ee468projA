@@ -28,9 +28,19 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
+  char *fn_copy, *fn_copy2, *token, *save_ptr;
+  char *argv[4];
+  int i;
   tid_t tid;
+  fn_copy2 = palloc_get_page(0);
 
+  strlcpy(fn_copy2, file_name, PGSIZE);
+  for(argv[i] = strtok_r(file_name, " ",&save_ptr); argv[i] != NULL;
+      argv[i] = strtok_r(NULL, " ", &save_ptr)) {
+      printf("***\n\n\n\n'%s'\n\n\n\n****", argv[i]);
+      argv[i++];
+      }
+  palloc_free_page(fn_copy2); 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
