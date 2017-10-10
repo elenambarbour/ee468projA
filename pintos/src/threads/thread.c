@@ -71,6 +71,17 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/* Raj Mahal */
+static bool thread_sort_less (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+static bool thread_insert_less_head (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+static bool thread_insert_less_tail (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+
+static void thread_calculate_priority_other (struct thread *curr);
+static void thread_calculate_recent_cpu_other (struct thread *curr);
+
+static int load_avg;
+/* == Raj Mahal */
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -468,7 +479,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
+
   t->priority = priority;
+
+
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 
@@ -585,7 +599,80 @@ allocate_tid (void)
 
   return tid;
 }
-
+
+/* == Raj Mahal*/
+
+/* My Implemenatation */
+
+/* Tell list_sort how to sort the ready list,
+ * We keep the thread who has outstanding priority at the head of the list
+ * And the sort is stable
+ */
+static bool
+thread_sort_less (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED)
+{
+  struct thread *a, *b;
+  
+  ASSERT (lhs != NULL && rhs != NULL);
+  
+  a = list_entry (lhs, struct thread, elem);
+  b = list_entry (rhs, struct thread, elem);
+  
+  return (a->priority > b->priority);
+}
+
+/* put the threads who has outstanding priority to the head of the list */
+void
+sort_thread_list (struct list *l)
+{
+  if (list_empty (l))
+    return;
+
+  list_sort (l, thread_sort_less, NULL);
+}
+
+/* same as thread_sort_less but use > instead of >= */
+static bool
+thread_insert_less_head (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED)
+{
+  struct thread *a, *b;
+  
+  ASSERT (lhs != NULL && rhs != NULL);
+  
+  a = list_entry (lhs, struct thread, elem);
+  b = list_entry (rhs, struct thread, elem);
+  
+  return (a->priority >= b->priority);
+}
+
+/* same as thread_sort_less */
+static bool
+thread_insert_less_tail (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED)
+{
+  return thread_sort_less (lhs, rhs, NULL);
+}
+
+struct thread *
+get_thread_by_tid (tid_t tid)
+{
+  struct list_elem *f;
+  struct thread *ret;
+  
+  ret = NULL;
+  for (f = list_begin (&all_list); f != list_end (&all_list); f = list_next (f))
+    {
+      ret = list_entry (f, struct thread, allelem);
+      ASSERT (is_thread (ret));
+      if (ret->tid == tid)
+        return ret;
+    }
+    
+  return NULL;
+}
+
+/* == My Implementation */
+
+/* == Raj Mahal */
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
