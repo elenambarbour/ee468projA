@@ -101,6 +101,10 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    /* == Raj Mahal */
+    int next_fd;
+    char prog_name;
+    /* == Raj Mahal */
 #endif
 
     /* Owned by thread.c. */

@@ -17,9 +17,16 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+/* == Raj Mahal */
+#include "threads/malloc.h"
+#include "userprog/syscall.h"
+/* == Raj Mahal */
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+
+static void extract_command_name(char * cmd_string, char *command_name);
+static void extract_command_args(char * cmd_string, char* argv[], int *argc);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -28,30 +35,51 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy, *fn_copy2, *token, *save_ptr;
-  char *argv[4];
-  int i;
+  char *fn_copy;
   tid_t tid;
-  fn_copy2 = palloc_get_page(0);
 
-  strlcpy(fn_copy2, file_name, PGSIZE);
-  for(argv[i] = strtok_r(file_name, " ",&save_ptr); argv[i] != NULL;
-      argv[i] = strtok_r(NULL, " ", &save_ptr)) {
-      printf("***\n\n\n\n'%s'\n\n\n\n****", argv[i]);
-      argv[i++];
-      }
-  palloc_free_page(fn_copy2); 
+  /* == Raj Mahal */
+  char *f_name, *f_cmd, *save_ptr;
+  char *argv[4];
+  int i =0;
+  int argc;
+  /* == Raj Mahal */
+ 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
+  if (fn_copy == NULL) 
     return TID_ERROR;
+  
   strlcpy (fn_copy, file_name, PGSIZE);
+  
+  /* == Raj Mahal */
+  f_name = palloc_get_page(0);
+  strlcpy(f_name, file_name, PGSIZE);
+  if(f_name == NULL) {
+    return TID_ERROR;
+  }
 
+  
+  
+  /* == Raj Mahal */
+
+  extract_command_name(fn_copy, f_name);
+  extract_command_args(fn_copy, argv, &argc);
+  printf("\n\n\n\n\n******arguments again %s******\n\n\n\n", argv[0]);
   /* Create a new thread to execute FILE_NAME. */
+      printf("\n\n\n\n\n******creating thread******\n\n\n\n");
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  //tid = thread_create (file_name, PRI_DEFAULT, start_process, f_name);
+
   if (tid == TID_ERROR)
+    printf("\n\n\n\n\n******ERROR ERROR******\n\n\n\n");
     palloc_free_page (fn_copy); 
+    //palloc_free_page (f_name); 
+    /* == Raj Mahal */
+    //free(f_name);
+    //return -1;
+    /* == Raj Mahal */
   return tid;
 }
 
@@ -63,17 +91,30 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  /* == Raj Mahal */
+  
+  char *f_name, *argv[4];
+  int i =0;
+  int argc;
+  /* == Raj Mahal */
+ 
+printf("\n\n\n\n\n******IN START PROCESS******\n\n\n\n");
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  //strlcpy (f_name, file_name, PGSIZE);
+  
 
+  //printf("\n\n\n\n\n******arguments again %s******\n\n\n\n", argv[0]);
+  //printf("\n\n\n\n\n******about to load******\n\n\n\n");
+  success = load (file_name, &if_.eip, &if_.esp);
+  printf("\n\n\n\n\n******JUST CALLED LOAD******\n\n\n\n");
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
+    printf("\n\n\n\n\n******NOT SUCCESSFULL******\n\n\n\n");
     thread_exit ();
 
   /* Start the user process by simulating a return from an
@@ -141,7 +182,7 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+
 /* We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 
@@ -224,7 +265,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-
+      printf("\n\n\n\n\n******IN LOAD******\n\n\n\n");
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -232,6 +273,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  printf("\n\n\n\n\n******OPENING FYLSYSTEM******\n\n\n\n");
   file = filesys_open (file_name);
   if (file == NULL) 
     {
@@ -325,7 +367,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_close (file);
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -473,3 +515,32 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
+
+/* == Raj Mahal */
+static void
+extract_command_name(char * cmd_string, char *command_name)
+{
+  char *save_ptr;
+  strlcpy (command_name, cmd_string, PGSIZE);
+  command_name = strtok_r(command_name, " ", &save_ptr);
+  printf("***\n\n\n\n'%s'\n\n\n\n****", command_name);
+
+}
+
+static void
+extract_command_args(char * cmd_string, char* argv[], int *argc)
+{
+  char *save_ptr;
+  argv[0] = strtok_r(cmd_string, " ", &save_ptr);
+  printf("***\n\n\n\n'%s'\n\n\n\n****", argv[0]);
+  char *token;
+  *argc = 1;
+  while((token = strtok_r(NULL, " ", &save_ptr))!=NULL)
+  {
+    printf("***\n\n\n\n'%s'\n\n\n\n****", argv[(*argc)++] = token);
+    //argv[(*argc)++] = token;
+
+  }
+  
+}
+/* == Raj Mahal */

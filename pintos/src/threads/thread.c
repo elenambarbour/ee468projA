@@ -173,6 +173,7 @@ thread_create (const char *name, int priority,
   struct switch_threads_frame *sf;
   tid_t tid;
   enum intr_level old_level;
+    printf("\n\n\n\n\n******IN THREAD CREATE******\n\n\n\n");
 
   ASSERT (function != NULL);
 
@@ -182,6 +183,7 @@ thread_create (const char *name, int priority,
     return TID_ERROR;
 
   /* Initialize thread. */
+ printf("\n\n\n\n\n******INitializing THREAD******\n\n\n\n");
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
@@ -209,7 +211,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+ printf("\n\n\n\n\n******LEAVING THREAD******\n\n\n\n");
   return tid;
 }
 

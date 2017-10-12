@@ -113,6 +113,7 @@ malloc (size_t size)
 
       /* Initialize the arena to indicate a big block of PAGE_CNT
          pages, and return it. */
+ printf("\n\n\n\n\n******MAGIC******\n\n\n\n");
       a->magic = ARENA_MAGIC;
       a->desc = NULL;
       a->free_cnt = page_cnt;
